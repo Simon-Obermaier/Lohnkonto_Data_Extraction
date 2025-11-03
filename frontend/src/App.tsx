@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { Upload, Download, FileText, CheckCircle2, Loader2 } from 'lucide-react';
+import { Upload, Download, FileText, CheckCircle2, Loader2, Lock } from 'lucide-react';
 
-type UploadStatus = 'idle' | 'uploading' | 'processing' | 'complete';
+type UploadStatus = 'idle' | 'uploading' | 'processing' | 'complete' | 'password_required';
 
 function App() {
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
@@ -9,6 +9,9 @@ function App() {
   const [fileName, setFileName] = useState('');
   const [processedFileUrl, setProcessedFileUrl] = useState<string>('');
   const [processedFileName, setProcessedFileName] = useState<string>('');
+  const [password, setPassword] = useState('');
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [passwordError, setPasswordError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,15 +35,22 @@ function App() {
 
   const processFile = (file: File) => {
     setFileName(file.name);
+    setCurrentFile(file);
+    setPassword('');
+    setPasswordError('');
     uploadFile(file);
   };
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = async (file: File, filePassword?: string) => {
     setUploadStatus('uploading');
     setProgress(0);
+    setPasswordError('');
 
     const formData = new FormData();
     formData.append('file', file);
+    if (filePassword) {
+      formData.append('password', filePassword);
+    }
 
     // Get API URL from environment variable
     const apiUrl = (import.meta.env.VITE_API_URL || 'https://lohnkontodataextraction-production-6d82.up.railway.app').replace(/\/$/, '');;
@@ -87,6 +97,30 @@ function App() {
           console.error('Error processing response:', error);
           alert('Failed to process the file. Please try again.');
           handleReset();
+        }
+      } else if (xhr.status === 401) {
+        // Password required for encrypted PDF
+        console.log('Password required for PDF');
+
+        // Try to parse error message from response
+        try {
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const errorData = JSON.parse(reader.result as string);
+              const errorMessage = typeof errorData.detail === 'string'
+                ? errorData.detail
+                : errorData.detail?.message || 'This PDF is password protected. Please enter the password.';
+              setPasswordError(errorMessage);
+            } catch {
+              setPasswordError('This PDF is password protected. Please enter the password.');
+            }
+            setUploadStatus('password_required');
+          };
+          reader.readAsText(xhr.response);
+        } catch {
+          setPasswordError('This PDF is password protected. Please enter the password.');
+          setUploadStatus('password_required');
         }
       } else {
         console.error('Upload failed:', xhr.status, xhr.statusText);
@@ -141,11 +175,21 @@ function App() {
     }
   };
 
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (currentFile && password.trim()) {
+      uploadFile(currentFile, password);
+    }
+  };
+
   const handleReset = () => {
     setUploadStatus('idle');
     setProgress(0);
     setFileName('');
     setProcessedFileName('');
+    setPassword('');
+    setPasswordError('');
+    setCurrentFile(null);
     if (processedFileUrl) {
       URL.revokeObjectURL(processedFileUrl);
       setProcessedFileUrl('');
@@ -245,6 +289,64 @@ function App() {
                     style={{ width: `${progress}%` }}
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Password Required State */}
+          {uploadStatus === 'password_required' && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <Lock className="w-6 h-6 text-yellow-600" />
+                <div className="flex-1">
+                  <p className="font-medium text-yellow-900">Password Required</p>
+                  <p className="text-sm text-yellow-700">{passwordError || 'This PDF is password protected'}</p>
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <FileText className="w-8 h-8 text-blue-600" />
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{fileName}</p>
+                    <p className="text-sm text-gray-500">Encrypted PDF</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                      Enter Password
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      placeholder="Enter PDF password"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={!password.trim()}
+                      className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                    >
+                      Unlock and Process
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
