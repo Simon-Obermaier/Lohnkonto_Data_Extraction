@@ -25,7 +25,7 @@ python api.py
 
 Or with uvicorn:
 ```bash
-uvicorn api:app --reload --host 0.0.0.0 --port 8000
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ## API Endpoints

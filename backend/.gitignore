@@ -2,8 +2,8 @@
 .env
 
 # Template files (may contain sensitive data)
-*.xlsx
-!template.xlsx.example
+#*.xlsx
+#!template.xlsx.example
 
 # Python
 __pycache__/
