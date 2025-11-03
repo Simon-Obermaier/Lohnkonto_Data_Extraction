@@ -78,7 +78,7 @@ def process_pdf(pdf_file, template, password=None):
         if not meta is None:
             meta_detector = detector
             data_extractor = detectors[detector]
-            print(f"[INFO] Erkanntes Format: {detector.__class__.__name__[len("MetaDetector"):]}")
+            print(f"[INFO] Erkanntes Format: {detector.__class__.__name__[len('MetaDetector'):]}")
             break
 
     if meta_detector is None:
