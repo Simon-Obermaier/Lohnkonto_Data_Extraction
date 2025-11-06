@@ -1,25 +1,21 @@
 # This is its own file due to circularity errors
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from .classes import MetaData
-
-__current_meta: MetaData | None = None
+__current_meta = None
 __pages = None
 __current_page = 0
 
-def get_current_meta() -> MetaData:
+def get_current_meta():
     global __current_meta
     return __current_meta
 
-def set_current_meta(meta: MetaData):
+def set_current_meta(meta):
     global __current_meta
     __current_meta = meta
 
-def get_current_page() -> int:
+def get_current_page():
     global __current_page
     return __current_page
 
-def set_current_page(page: int):
+def set_current_page(page):
     global __current_page
     __current_page = page
 
