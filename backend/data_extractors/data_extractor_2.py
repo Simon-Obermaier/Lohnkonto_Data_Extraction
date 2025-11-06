@@ -3,7 +3,7 @@ from math import floor
 
 from pypdf import PageObject
 
-from misc.classes import DataExtractor, DataMode
+from classes import DataExtractor, DataMode
 
 
 class DataExtractor2(DataExtractor):
