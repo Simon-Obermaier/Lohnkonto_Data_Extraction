@@ -26,3 +26,10 @@ def get_pages():
 def set_pages(pages):
     global __pages
     __pages = pages
+
+def reset_global_state():
+    """Reset all global state to prevent caching between requests"""
+    global __current_meta, __pages, __current_page
+    __current_meta = None
+    __pages = None
+    __current_page = 0

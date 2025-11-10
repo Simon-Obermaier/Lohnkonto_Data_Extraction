@@ -25,15 +25,17 @@ from meta_detectors.meta_detector_5 import MetaDetector5
 from meta_detectors.meta_detector_6 import MetaDetector6
 from meta_detectors.meta_detector_7 import MetaDetector7
 
-detectors = { # PyInstaller messes with reflection based access
-    MetaDetector1(): DataExtractor1(),
-    MetaDetector2(): DataExtractor2(),
-    MetaDetector3(): DataExtractor3(),
-    MetaDetector4(): DataExtractor4(),
-    MetaDetector5(): DataExtractor5(),
-    MetaDetector6(): DataExtractor6(),
-    MetaDetector7(): DataExtractor7(),
-}
+def create_detectors():
+    """Create fresh detector instances to avoid state caching"""
+    return { # PyInstaller messes with reflection based access
+        MetaDetector1(): DataExtractor1(),
+        MetaDetector2(): DataExtractor2(),
+        MetaDetector3(): DataExtractor3(),
+        MetaDetector4(): DataExtractor4(),
+        MetaDetector5(): DataExtractor5(),
+        MetaDetector6(): DataExtractor6(),
+        MetaDetector7(): DataExtractor7(),
+    }
 
 people = []
 
@@ -57,6 +59,14 @@ def process_pdf(pdf_file, template, password=None):
     Returns:
         tuple: (output_filename, people_count, processing_time)
     """
+    # Clear global state to prevent caching between requests
+    global people
+    people.clear()
+    data_holder.reset_global_state()
+
+    # Create fresh detector instances for this request
+    detectors = create_detectors()
+
     reader = PdfReader(pdf_file)
     if reader.is_encrypted:
         if password:

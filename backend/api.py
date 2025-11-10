@@ -19,7 +19,12 @@ app = FastAPI(title="Lohnkonto Data Extraction API")
 
 # Get allowed origins from environment variable
 allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "*")
-allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")] if allowed_origins_str != "*" else ["*"]
+if allowed_origins_str == "*":
+    allowed_origins = ["*"]
+else:
+    allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
+
+print(f"[CORS] Allowed origins: {allowed_origins}")  # Debug print
 
 # Add CORS middleware to allow frontend to communicate
 app.add_middleware(
@@ -167,8 +172,8 @@ async def health_check():
 
 if __name__ == "__main__":
     # Run the server
-    port = int(os.getenv("PORT", 8000))
-    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 8001))
+    host = os.getenv("HOST", "127.0.0.1")
 
     print("=" * 60)
     print("Lohnkonto Data Extraction Backend")
@@ -182,14 +187,14 @@ if __name__ == "__main__":
 
     if not os.path.exists(TEMPLATE_PATH):
         print("-" * 60)
-        print("⚠️  WARNING: Template file not found!")
+        print("WARNING: Template file not found!")
         print(f"   Please place your Excel template at: {os.path.abspath(TEMPLATE_PATH)}")
         print("   The template should contain:")
         print("   - Sheet: 'IST Gehälter' (for employee data)")
         print("   - Sheet: 'Projektübersicht' (for project overview)")
         print("-" * 60)
     else:
-        print("✓ Template file found")
+        print("Template file found")
         print("-" * 60)
 
     print("\nStarting server...\n")
