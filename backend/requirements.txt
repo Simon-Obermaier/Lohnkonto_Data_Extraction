@@ -5,3 +5,6 @@ openpyxl==3.1.5
 pypdf==5.1.0
 python-dotenv
 cryptography>=3.1
+Flask==3.0.0
+flask-cors==4.0.0
+Werkzeug==3.0.1
