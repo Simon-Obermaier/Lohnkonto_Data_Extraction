@@ -7,13 +7,14 @@ from typing import Optional
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 import uvicorn
 from dotenv import load_dotenv
-
-from main import process_pdf
+from jar_processor import get_jar_processor
 
 # Load environment variables
 load_dotenv()
+
 
 app = FastAPI(title="Lohnkonto Data Extraction API")
 
@@ -91,51 +92,65 @@ async def process_document(
                 detail=f"Template file not found at {TEMPLATE_PATH}. Please set TEMPLATE_PATH environment variable."
             )
 
-        # Change to temp directory for processing (output files are created in current dir)
-        original_dir = os.getcwd()
-        os.chdir(temp_dir)
+        # Process the PDF using JAR processor
+        jar_processor = get_jar_processor()
+        # Pass temp_dir as working directory so output files are created there
+        result = jar_processor.process_pdf(
+            pdf_path,
+            password if password else "",
+            working_dir=temp_dir
+        )
 
-        # Process the PDF
-        try:
-            output_filename, people_count, processing_time = process_pdf(pdf_path, TEMPLATE_PATH, password)
-            output_path = os.path.join(temp_dir, output_filename)
+        if not result.get("success"):
+            error_msg = result.get("message", "Unknown error during processing")
+            raise ValueError(error_msg)
 
-            # Debug logging
-            print(f"[DEBUG] Output filename: {output_filename}")
-            print(f"[DEBUG] Output path: {output_path}")
-            print(f"[DEBUG] Output file exists: {os.path.exists(output_path)}")
-            print(f"[DEBUG] Files in temp dir: {os.listdir(temp_dir)}")
+        # Get the output file path
+        files = result.get("file_paths", [])
+        if not files:
+            raise ValueError("No output files generated")
 
-            # Check if output file was created
-            if not os.path.exists(output_path):
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Processing completed but output file was not created. Expected: {output_filename}"
-                )
+        output_path = files[0]  # Use first file
+        output_filename = os.path.basename(output_path)
 
-            # Verify it's an Excel file
-            if not output_filename.endswith('.xlsx'):
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Output file is not an Excel file: {output_filename}"
-                )
+        # Debug logging
+        print(f"[DEBUG] Output filename: {output_filename}")
+        print(f"[DEBUG] Output path: {output_path}")
+        print(f"[DEBUG] Output file exists: {os.path.exists(output_path)}")
+        print(f"[DEBUG] Files in temp dir: {os.listdir(temp_dir)}")
 
-            # Return the processed Excel file
-            print(f"[DEBUG] Returning Excel file: {output_filename}")
-            return FileResponse(
-                path=output_path,
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                filename=output_filename,
-                headers={
-                    "X-Processing-Time": str(processing_time),
-                    "X-People-Count": str(people_count),
-                    "Content-Disposition": f'attachment; filename="{output_filename}"'
-                }
+        # Check if output file was created
+        if not os.path.exists(output_path):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Processing completed but output file was not created. Expected: {output_filename}"
             )
 
-        finally:
-            # Restore original directory
-            os.chdir(original_dir)
+        # Verify it's an Excel file
+        if not output_filename.endswith('.xlsx'):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Output file is not an Excel file: {output_filename}"
+            )
+
+        # Return the processed Excel file
+        print(f"[DEBUG] Returning Excel file: {output_filename}")
+
+        # Get metadata from result
+        people_count = result.get("people_count", 0)
+        notes = result.get("notes", [])
+
+        return FileResponse(
+            path=output_path,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=output_filename,
+            headers={
+                "X-People-Count": str(people_count),
+                "X-Client-Name": result.get("client_name", ""),
+                "X-Year": str(result.get("year", "")),
+                "Content-Disposition": f'attachment; filename="{output_filename}"'
+            }
+        )
 
     except ValueError as e:
         error_msg = str(e)
@@ -164,10 +179,17 @@ async def process_document(
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    # Check Java installation
+    from jar_processor import get_jar_processor
+    jar_proc = get_jar_processor()
+    java_status = jar_proc.check_java_installation()
+
     return {
         "status": "healthy",
         "template_exists": os.path.exists(TEMPLATE_PATH),
-        "template_path": TEMPLATE_PATH
+        "template_path": TEMPLATE_PATH,
+        "java_installed": java_status.get("installed", False),
+        "java_version": java_status.get("version_info", "Not available") if java_status.get("installed") else None
     }
 
 if __name__ == "__main__":
