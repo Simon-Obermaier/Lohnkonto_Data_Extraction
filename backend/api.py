@@ -31,9 +31,11 @@ print(f"[CORS] Allowed origins: {allowed_origins}")  # Debug print
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=False,
-    allow_methods=["*"],
+    allow_credentials=True,  # Changed to True to allow credentials
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly include OPTIONS
     allow_headers=["*"],
+    expose_headers=["X-People-Count", "X-Client-Name", "X-Year", "Content-Disposition"],  # Expose custom headers
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Path to the Excel template - convert to absolute path
