@@ -1,10 +1,7 @@
 {
   "phases": {
     "setup": {
-      "nixPkgs": ["python311", "openjdk17"]
-    },
-    "install": {
-      "cmds": ["python -m pip install --no-cache-dir -r requirements.txt"]
+      "nixPkgs": ["openjdk17"]
     }
   },
   "start": {
